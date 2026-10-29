@@ -52,4 +52,15 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+        // ViewModel para Jetpack Compose (incluye viewModel() y collectAsStateWithLifecycle)
+        implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0") // Usa la versión compatible con tu proyecto
+
+        // ViewModel KTX para operaciones asíncronas y corrutinas en ViewModel
+        implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+
+        // Generalmente ya incluidas por defecto en plantillas de Compose:
+        implementation("androidx.compose.material3:material3")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0") // Versión acorde a tu Kotlin
+        testImplementation("junit:junit:4.13.2")
+    implementation(kotlin("test"))
 }
