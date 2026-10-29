@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -37,6 +38,11 @@ android {
 }
 
 dependencies {
+    val roomVersion = "2.8.5"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -52,15 +58,13 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
-        // ViewModel para Jetpack Compose (incluye viewModel() y collectAsStateWithLifecycle)
-        implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0") // Usa la versión compatible con tu proyecto
 
-        // ViewModel KTX para operaciones asíncronas y corrutinas en ViewModel
-        implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+    // ViewModel para Jetpack Compose (incluye viewModel() y collectAsStateWithLifecycle)
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
 
-        // Generalmente ya incluidas por defecto en plantillas de Compose:
-        implementation("androidx.compose.material3:material3")
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0") // Versión acorde a tu Kotlin
-        testImplementation("junit:junit:4.13.2")
+    // ViewModel KTX para operaciones asíncronas y corrutinas en ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation(kotlin("test"))
 }
