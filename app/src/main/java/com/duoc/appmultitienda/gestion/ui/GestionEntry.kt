@@ -17,13 +17,20 @@ import com.duoc.appmultitienda.gestion.model.FakeLoginRepository
 import com.duoc.appmultitienda.gestion.viewmodel.LoginViewModel
 
 @Composable
-fun GestionEntry() {
-    val vm: LoginViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+fun GestionEntry(
+    loginKey: String = "javier-login-default",
+    onSessionStarted: (com.duoc.appmultitienda.gestion.model.UsuarioSesion) -> Unit = {}
+) {
+    val vm: LoginViewModel = viewModel(key = loginKey, factory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
             LoginViewModel(FakeLoginRepository()) as T
     })
     val estado by vm.uiState.collectAsState()
+
+    LaunchedEffect(estado.sesion) {
+        estado.sesion?.let(onSessionStarted)
+    }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
