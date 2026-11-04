@@ -1,6 +1,8 @@
 package com.duoc.appmultitienda.gestion.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -63,7 +65,10 @@ fun DiferenciasScreen(vm: DiferenciasViewModel, actorId: String = "ENC-004") {
                 onDismissRequest = vm::cerrarDetalle,
                 title = { Text("Conteo ${conteo.idConteo}") },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text("${conteo.nombreProducto}\n${conteo.nombreSucursal}\nOficial: ${conteo.stockOficial} uds\nContado: ${conteo.stockContado} uds\nDiferencia: ${conteo.diferencia} uds\nOperador: ${conteo.operadorId}\n${conteo.fechaUtc}\n\n${conteo.observacion}")
                         if (conteo.estado == EstadoConteo.PENDIENTE) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -71,6 +76,7 @@ fun DiferenciasScreen(vm: DiferenciasViewModel, actorId: String = "ENC-004") {
                                 OutlinedButton(onClick = { vm.elegirAccion(false) }, enabled = !state.procesando) { Text("Rechazar") }
                             }
                         }
+                        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         if (state.accion != null) {
                             Text(if (state.accion == true) "Motivo de aprobación" else "Motivo de rechazo")
                             OutlinedTextField(
@@ -81,7 +87,11 @@ fun DiferenciasScreen(vm: DiferenciasViewModel, actorId: String = "ENC-004") {
                             )
                             Text("${state.motivo.trim().length}/200 caracteres")
                             if (state.procesando) CircularProgressIndicator()
-                            Button(onClick = { vm.confirmarDecision(actorId) }, enabled = !state.procesando) {
+                            Button(
+                                onClick = { vm.confirmarDecision(actorId) },
+                                enabled = !state.procesando,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(if (state.accion == true) "Confirmar ajuste" else "Confirmar rechazo")
                             }
                         }
