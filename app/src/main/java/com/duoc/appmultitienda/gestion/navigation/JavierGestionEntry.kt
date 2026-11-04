@@ -87,7 +87,14 @@ private fun PanelGestion(sesion: UsuarioSesion, fuente: FuenteGestionCompartida,
                 when (seleccion) {
                     GestionRuta.DIFERENCIAS -> DiferenciasEntry(repository = fuente, actorId = sesion.identificador)
                     GestionRuta.HISTORIAL_ALERTAS -> HistorialAlertasEntry(repository = fuente)
-                    GestionRuta.DASHBOARD_REPOSICION -> ReposicionDashboardEntry()
+                    GestionRuta.DASHBOARD_REPOSICION -> ReposicionDashboardEntry(
+                        historial = fuente, reposiciones = fuente,
+                        actorId = sesion.identificador, soloReposicion = false
+                    )
+                    GestionRuta.REPOSICION -> ReposicionDashboardEntry(
+                        historial = fuente, reposiciones = fuente,
+                        actorId = sesion.identificador, soloReposicion = true
+                    )
                     GestionRuta.REPORTES, GestionRuta.REPORTES_SUCURSALES -> {
                         val reportesVm: ReportesSucursalesViewModel = viewModel(
                             factory = object : ViewModelProvider.Factory {

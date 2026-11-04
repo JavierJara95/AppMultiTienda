@@ -13,34 +13,43 @@ import com.duoc.appmultitienda.gestion.repository.*
 import com.duoc.appmultitienda.gestion.viewmodel.*
 
 @Composable
-fun ReposicionDashboardEntry() {
-    val historial = remember { FakeHistorialAlertasRepository() }
-    val reposiciones = remember { FakeReposicionRepository() }
+fun ReposicionDashboardEntry(
+    historial: HistorialAlertasRepository? = null,
+    reposiciones: ReposicionRepository? = null,
+    actorId: String = "ENC-004",
+    soloReposicion: Boolean = false
+) {
+    val fallbackHistorial = remember { FakeHistorialAlertasRepository() }
+    val fallbackReposiciones = remember { FakeReposicionRepository() }
+    val repositorioHistorial = historial ?: fallbackHistorial
+    val repositorioReposiciones = reposiciones ?: fallbackReposiciones
     val vm: ReposicionDashboardViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            ReposicionDashboardViewModel(historial, reposiciones) as T
+            ReposicionDashboardViewModel(repositorioHistorial, repositorioReposiciones) as T
     })
-    ReposicionDashboardScreen(vm)
+    ReposicionDashboardScreen(vm, actorId = actorId, soloReposicion = soloReposicion)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReposicionDashboardScreen(vm: ReposicionDashboardViewModel) {
+fun ReposicionDashboardScreen(vm: ReposicionDashboardViewModel, actorId: String = "ENC-004", soloReposicion: Boolean = false) {
     val state by vm.uiState.collectAsState()
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember { mutableIntStateOf(if (soloReposicion) 1 else 0) }
     Scaffold(topBar = { TopAppBar(title = { Text("MultiTienda · Gestión") }) }) { contentPadding ->
         Column(Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 16.dp)) {
-            PrimaryTabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Dashboard") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Reposición") })
+            if (!soloReposicion) {
+                PrimaryTabRow(selectedTabIndex = tab) {
+                    Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Dashboard") })
+                    Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Reposición") })
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 10.dp)) {
                 listOf("TODAS" to "Todas", "SUC-01" to "Alameda", "SUC-02" to "Norte").forEach { (id, label) ->
                     FilterChip(selected = state.sucursal == id, onClick = { vm.seleccionarSucursal(id) }, label = { Text(label) })
                 }
             }
-            if (tab == 0) {
+            if (!soloReposicion && tab == 0) {
                 val r = state.resumen
                 Text("Resumen de alertas registradas", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(8.dp))
@@ -89,7 +98,7 @@ fun ReposicionDashboardScreen(vm: ReposicionDashboardViewModel) {
                     Text("Esta solicitud NO modifica las existencias.", style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = { TextButton(enabled = !state.enviando, onClick = { vm.enviarSolicitud() }) { Text(if (state.enviando) "Guardando…" else "Enviar") } },
+            confirmButton = { TextButton(enabled = !state.enviando, onClick = { vm.enviarSolicitud(actorId) }) { Text(if (state.enviando) "Guardando…" else "Enviar") } },
             dismissButton = { TextButton(enabled = !state.enviando, onClick = vm::cerrarFormulario) { Text("Cancelar") } }
         )
     }

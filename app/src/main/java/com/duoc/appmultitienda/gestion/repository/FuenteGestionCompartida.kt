@@ -4,6 +4,7 @@ import com.duoc.appmultitienda.gestion.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
@@ -11,7 +12,7 @@ import java.time.Instant
 /** Demostración EN MEMORIA: una fuente coherente para diferencias, auditoría y CSV.
  * No sustituye la API REST, ni persiste decisiones después de reiniciar el proceso.
  */
-class FuenteGestionCompartida : DiferenciasRepository, HistorialAlertasRepository, ReportesSucursalesRepository {
+class FuenteGestionCompartida : DiferenciasRepository, HistorialAlertasRepository, ReportesSucursalesRepository, ReposicionRepository {
     private val mutex = Mutex()
     private val conteos = MutableStateFlow(listOf(
         DiferenciaInventario("CNT-1048", "SUC-01", "Tienda Alameda", "CAF-001", "Café molido 500 g", 48, 44, "OPR-017", "2026-10-12 14:41 UTC", "Faltan cuatro unidades", EstadoConteo.PENDIENTE),
@@ -36,6 +37,41 @@ class FuenteGestionCompartida : DiferenciasRepository, HistorialAlertasRepositor
         SucursalGestion("SUC-02", "Bodega Norte", "Parque Industrial 45", true),
         SucursalGestion("SUC-03", "Tienda Mirador", "Calle Mirador 86", false)
     ))
+    private val solicitudesReposicion = MutableStateFlow<List<SolicitudReposicion>>(emptyList())
+    override fun observarSolicitudes(): Flow<List<SolicitudReposicion>> = solicitudesReposicion.asStateFlow()
+
+    /** Solicita reposición sin alterar saldos ni crear movimientos. */
+    override suspend fun solicitar(
+        alerta: AlertaStock, cantidad: Int, motivo: String, actorId: String
+    ): Result<SolicitudReposicion> = mutex.withLock {
+        if (!(actorId.startsWith("ENC-") || actorId.startsWith("ADM-")))
+            return@withLock Result.failure(IllegalAccessException("Solo Encargado o Admin pueden solicitar"))
+        val error = ReposicionValidator.validar(cantidad.toString(), motivo)
+        if (error != null) return@withLock Result.failure(IllegalArgumentException(error))
+        // Consultar la alerta actual, no confiar en una tarjeta antigua de la interfaz.
+        val vigente = alertas.value.firstOrNull {
+            it.sucursalId == alerta.sucursalId && it.productoCodigo == alerta.productoCodigo
+        } ?: return@withLock Result.failure(IllegalArgumentException("Producto no encontrado"))
+        if (vigente.estado == EstadoStock.NORMAL)
+            return@withLock Result.failure(IllegalStateException("El producto ya no requiere reposición"))
+        if (_sucursales.value.none { it.id == vigente.sucursalId && it.activa })
+            return@withLock Result.failure(IllegalStateException("Sucursal inactiva"))
+
+        val nueva = SolicitudReposicion(
+            id = "REP-${(solicitudesReposicion.value.size + 1).toString().padStart(3, '0')}",
+            productoCodigo = vigente.productoCodigo,
+            productoNombre = vigente.productoNombre,
+            sucursalId = vigente.sucursalId,
+            sucursalNombre = vigente.sucursalNombre,
+            cantidad = cantidad,
+            motivo = motivo.trim(),
+            solicitanteId = actorId,
+            fechaUtc = Instant.now().toString()
+        )
+        solicitudesReposicion.value = solicitudesReposicion.value + nueva
+        Result.success(nueva)
+    }
+
     override val sucursales: StateFlow<List<SucursalGestion>> = _sucursales
     override fun observarConteos(): Flow<List<DiferenciaInventario>> = conteos
     override fun observarMovimientos(): Flow<List<MovimientoAuditoria>> = movimientos
