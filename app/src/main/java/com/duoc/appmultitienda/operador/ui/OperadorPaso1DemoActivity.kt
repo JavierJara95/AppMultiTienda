@@ -19,6 +19,10 @@ import com.duoc.appmultitienda.operador.viewmodel.SeleccionSucursalViewModel
 import com.duoc.appmultitienda.operador.viewmodel.MovimientoViewModel
 import com.duoc.appmultitienda.operador.viewmodel.ConteoFisicoViewModel
 
+import com.duoc.appmultitienda.operador.scanner.EscanerCodigoBarrasScreen
+import com.duoc.appmultitienda.operador.scanner.CamaraLectorScreen
+import com.duoc.appmultitienda.operador.scanner.ProductoEscaneadoMatcher
+
 
 class OperadorPaso1DemoActivity : ComponentActivity() {
 
@@ -26,78 +30,128 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
 
-        // ViewModel para seleccionar sucursales
+        // ==========================================
+        // VIEWMODELS
+        // ==========================================
+
         val sucursalViewModel = ViewModelProvider(this)[
             SeleccionSucursalViewModel::class.java
         ]
 
-        // ViewModel para buscar productos
         val productoViewModel = ViewModelProvider(this)[
             BusquedaProductoViewModel::class.java
         ]
 
-        // ViewModel para registrar movimientos
         val movimientoViewModel = ViewModelProvider(this)[
             MovimientoViewModel::class.java
         ]
+
         val conteoViewModel = ViewModelProvider(this)[
             ConteoFisicoViewModel::class.java
         ]
 
+        // Perfil de demostración.
+        val perfilOperador =
+            PerfilOperadorDemoRepository.obtenerPerfil()
+
         setContent {
 
-            // Sucursal donde trabaja el operador
+            // ==========================================
+            // ESTADOS DE NAVEGACIÓN
+            // ==========================================
+
             var sucursalId by rememberSaveable {
                 mutableStateOf<String?>(null)
             }
 
-            // Pantalla que se está mostrando
             var pantalla by rememberSaveable {
                 mutableStateOf("seleccion")
             }
 
-            // Producto seleccionado
             var productoCodigo by rememberSaveable {
                 mutableStateOf<String?>(null)
             }
 
-            // Indica por qué abrimos la búsqueda
             var origenBusqueda by rememberSaveable {
                 mutableStateOf("consulta")
             }
 
-            // Permite regresar a la pantalla correcta
             var origenMovimiento by rememberSaveable {
                 mutableStateOf("ficha")
             }
+
             var origenConteo by rememberSaveable {
                 mutableStateOf("ficha")
             }
 
-            // Estado de las sucursales
+            var origenHistorial by rememberSaveable {
+                mutableStateOf("inicio")
+            }
+
+            var codigoEscaneadoPendiente by rememberSaveable {
+                mutableStateOf<String?>(null)
+            }
+
+            var sucursalEscaneoPendiente by rememberSaveable {
+                mutableStateOf<String?>(null)
+            }
+
+            // ==========================================
+            // VIEWMODELS
+            // ==========================================
+
             val sucursalesState by
             sucursalViewModel.uiState.collectAsStateWithLifecycle()
 
-            // Estado de los productos
             val productosState by
             productoViewModel.uiState.collectAsStateWithLifecycle()
 
             val movimientoState by
             movimientoViewModel.uiState.collectAsStateWithLifecycle()
 
-            // Obtener sucursal activa
+            // ==========================================
+            // REGISTRAR HISTORIAL
+            // ==========================================
+
+            val comprobanteActual =
+                movimientoState.comprobanteDemo
+
+            LaunchedEffect(comprobanteActual?.idDemostracion) {
+
+                if (comprobanteActual != null) {
+
+                    HistorialOperadorStore.registrar(
+                        comprobanteActual
+                    )
+                }
+            }
+
+            // ==========================================
+            // SUCURSAL Y PRODUCTO
+            // ==========================================
+
             val sucursal = sucursalesState.sucursales.find {
                 it.id == sucursalId
             }
 
-            // Obtener producto seleccionado
             val producto = productosState.productos.find {
                 it.codigo == productoCodigo &&
                         it.sucursalId == sucursalId
             }
 
-            // Función para abrir la búsqueda
+            // ==========================================
+            // FUNCIONES AUXILIARES
+            // ==========================================
+
+            fun limpiarEscaneoPendiente() {
+
+                codigoEscaneadoPendiente = null
+                sucursalEscaneoPendiente = null
+            }
+
             fun abrirBusqueda(origen: String) {
+
+                limpiarEscaneoPendiente()
 
                 productoViewModel.limpiarBusqueda()
 
@@ -108,7 +162,6 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                 pantalla = "busqueda"
             }
 
-            // Función para abrir el formulario
             fun abrirMovimiento(
                 tipo: TipoMovimiento,
                 origen: String
@@ -121,15 +174,46 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                 pantalla = "movimiento"
             }
 
-            // NAVEGACIÓN
+            fun abrirHistorial(origen: String) {
+
+                origenHistorial = origen
+
+                pantalla = "historial"
+            }
+
+            fun cambiarSucursal() {
+
+                sucursalViewModel.reiniciarSeleccion()
+
+                productoViewModel.limpiarBusqueda()
+
+                movimientoViewModel.reiniciarFormulario()
+
+                conteoViewModel.reiniciarConteo()
+
+                sucursalId = null
+
+                productoCodigo = null
+
+                limpiarEscaneoPendiente()
+
+                pantalla = "seleccion"
+            }
+
+            // ==========================================
+            // NAVEGACIÓN PRINCIPAL
+            // ==========================================
 
             when {
 
-                // 1. SELECCIÓN DE TIENDA
+                // ======================================
+                // SELECCIÓN DE SUCURSAL
+                // ======================================
 
                 pantalla == "seleccion" -> {
 
                     SeleccionSucursalScreen(
+
                         viewModel = sucursalViewModel,
 
                         onContinuar = { id ->
@@ -138,12 +222,16 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                             productoCodigo = null
 
+                            limpiarEscaneoPendiente()
+
                             pantalla = "inicio"
                         }
                     )
                 }
 
-                // 2. UBICACIÓN NO DISPONIBLE
+                // ======================================
+                // SUCURSAL NO DISPONIBLE
+                // ======================================
 
                 sucursal == null -> {
 
@@ -151,11 +239,15 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                         productoCodigo = null
 
+                        limpiarEscaneoPendiente()
+
                         pantalla = "seleccion"
                     }
                 }
 
-                // 3. INICIO DEL OPERADOR
+                // ======================================
+                // INICIO
+                // ======================================
 
                 pantalla == "inicio" -> {
 
@@ -165,28 +257,14 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                         onCambiarUbicacion = {
 
-                            // Reiniciar selección anterior
-                            sucursalViewModel.reiniciarSeleccion()
-
-                            // Limpiar resultados
-                            productoViewModel.limpiarBusqueda()
-
-                            // Limpiar formulario
-                            movimientoViewModel.reiniciarFormulario()
-
-                            conteoViewModel.reiniciarConteo()
-
-                            // Eliminar sucursal activa
-                            sucursalId = null
-
-                            productoCodigo = null
-
-                            pantalla = "seleccion"
+                            cambiarSucursal()
                         },
 
                         onEscanear = {
 
-                            abrirBusqueda("consulta")
+                            limpiarEscaneoPendiente()
+
+                            pantalla = "escaner"
                         },
 
                         onConteo = {
@@ -206,23 +284,183 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                         onHistorial = {
 
-                            mostrarMensaje(
-                                "Historial: módulo de Javier"
-                            )
+                            abrirHistorial("inicio")
                         },
 
                         onPerfil = {
 
-                            mostrarMensaje(
-                                "Perfil: pendiente de integración"
-                            )
+                            pantalla = "perfil"
                         }
                     )
                 }
 
-                // 4. BÚSQUEDA DE PRODUCTOS
+                // ======================================
+                // PERFIL DEL OPERADOR
+                // ======================================
+
+                pantalla == "perfil" -> {
+
+                    PerfilOperadorScreen(
+
+                        nombreSucursal = sucursal.nombre,
+
+                        perfil = perfilOperador,
+
+                        onVolver = {
+
+                            pantalla = "inicio"
+                        },
+
+                        onCambiarSucursal = {
+
+                            cambiarSucursal()
+                        },
+
+                        onAbrirHistorial = {
+
+                            abrirHistorial("perfil")
+                        }
+                    )
+                }
+
+                // ======================================
+                // PERMISO DE CÁMARA
+                // ======================================
+
+                pantalla == "escaner" -> {
+
+                    EscanerCodigoBarrasScreen(
+
+                        nombreSucursal = sucursal.nombre,
+
+                        onVolver = {
+
+                            pantalla = "inicio"
+                        },
+
+                        onAbrirCamara = {
+
+                            limpiarEscaneoPendiente()
+
+                            pantalla = "camara"
+                        },
+
+                        onBusquedaManual = {
+
+                            abrirBusqueda("consulta")
+                        }
+                    )
+                }
+
+                // ======================================
+                // CÁMARA
+                // ======================================
+
+                pantalla == "camara" -> {
+
+                    CamaraLectorScreen(
+
+                        nombreSucursal = sucursal.nombre,
+
+                        onVolver = {
+
+                            pantalla = "escaner"
+                        },
+
+                        onCodigoEscaneado = { codigo ->
+
+                            val codigoLimpio = codigo.trim()
+
+                            if (codigoLimpio.isBlank()) {
+
+                                mostrarMensaje(
+                                    "El código escaneado no es válido."
+                                )
+
+                            } else {
+
+                                productoViewModel.limpiarBusqueda()
+
+                                productoCodigo = null
+
+                                codigoEscaneadoPendiente =
+                                    codigoLimpio
+
+                                sucursalEscaneoPendiente =
+                                    sucursal.id
+
+                                origenBusqueda = "consulta"
+
+                                productoViewModel.buscarCodigoEscaneado(
+                                    codigo = codigoLimpio,
+                                    sucursalId = sucursal.id
+                                )
+
+                                pantalla = "busqueda"
+                            }
+                        }
+                    )
+                }
+
+                // ======================================
+                // BÚSQUEDA DE PRODUCTOS
+                // ======================================
 
                 pantalla == "busqueda" -> {
+
+                    LaunchedEffect(
+                        codigoEscaneadoPendiente,
+                        sucursalEscaneoPendiente,
+                        sucursal.id,
+                        productosState.consulta,
+                        productosState.busquedaRealizada,
+                        productosState.cargando,
+                        productosState.productos
+                    ) {
+
+                        val codigoPendiente =
+                            codigoEscaneadoPendiente
+
+                        val sucursalPendiente =
+                            sucursalEscaneoPendiente
+
+                        if (
+                            codigoPendiente != null &&
+                            sucursalPendiente == sucursal.id &&
+                            productosState.consulta.trim() ==
+                            codigoPendiente &&
+                            productosState.busquedaRealizada &&
+                            !productosState.cargando
+                        ) {
+
+                            val encontrado =
+                                ProductoEscaneadoMatcher.buscar(
+
+                                    codigoEscaneado = codigoPendiente,
+
+                                    sucursalId = sucursal.id,
+
+                                    productos = productosState.productos
+                                )
+
+                            limpiarEscaneoPendiente()
+
+                            if (encontrado != null) {
+
+                                productoCodigo = encontrado.codigo
+
+                                pantalla = "ficha"
+
+                            } else {
+
+                                mostrarMensaje(
+                                    "Producto no encontrado en " +
+                                            sucursal.nombre +
+                                            ". Puedes buscarlo manualmente."
+                                )
+                            }
+                        }
+                    }
 
                     BusquedaProductoScreen(
 
@@ -234,10 +472,14 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                         onVolver = {
 
+                            limpiarEscaneoPendiente()
+
                             pantalla = "inicio"
                         },
 
                         onProductoSeleccionado = { seleccionado ->
+
+                            limpiarEscaneoPendiente()
 
                             productoCodigo = seleccionado.codigo
 
@@ -277,7 +519,9 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                     )
                 }
 
-                // 5. FICHA DEL PRODUCTO
+                // ======================================
+                // FICHA DEL PRODUCTO
+                // ======================================
 
                 pantalla == "ficha" && producto != null -> {
 
@@ -311,13 +555,33 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                         onHistorial = {
 
-                            mostrarMensaje(
-                                "Historial: módulo de Javier"
-                            )
+                            abrirHistorial("ficha")
                         }
                     )
                 }
-                // PANTALLA DE CONTEO FÍSICO
+
+                // ======================================
+                // HISTORIAL
+                // ======================================
+
+                pantalla == "historial" -> {
+
+                    HistorialOperadorScreen(
+
+                        sucursalId = sucursal.id,
+
+                        nombreSucursal = sucursal.nombre,
+
+                        onVolver = {
+
+                            pantalla = origenHistorial
+                        }
+                    )
+                }
+
+                // ======================================
+                // CONTEO FÍSICO
+                // ======================================
 
                 pantalla == "conteo" && producto != null -> {
 
@@ -336,7 +600,9 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                     )
                 }
 
-                // 6. FORMULARIO DE MOVIMIENTOS
+                // ======================================
+                // MOVIMIENTOS
+                // ======================================
 
                 pantalla == "movimiento" && producto != null -> {
 
@@ -359,7 +625,10 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                         }
                     )
                 }
-                // PANTALLA DE REVISIÓN DEL MOVIMIENTO
+
+                // ======================================
+                // REVISIÓN
+                // ======================================
 
                 pantalla == "revision" && producto != null -> {
 
@@ -382,11 +651,15 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                         }
                     )
                 }
-                // PANTALLA DEL COMPROBANTE
+
+                // ======================================
+                // COMPROBANTE
+                // ======================================
 
                 pantalla == "comprobante" -> {
 
-                    val comprobante = movimientoState.comprobanteDemo
+                    val comprobante =
+                        movimientoState.comprobanteDemo
 
                     if (comprobante != null) {
 
@@ -398,9 +671,12 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
 
                             onVolverInicio = {
 
-                                movimientoViewModel.reiniciarFormulario()
+                                movimientoViewModel
+                                    .reiniciarFormulario()
 
                                 productoCodigo = null
+
+                                limpiarEscaneoPendiente()
 
                                 pantalla = "inicio"
                             }
@@ -413,26 +689,36 @@ class OperadorPaso1DemoActivity : ComponentActivity() {
                         }
                     }
                 }
+
+                // ======================================
                 // PRODUCTO NO DISPONIBLE
+                // ======================================
 
                 pantalla == "ficha" ||
                         pantalla == "movimiento" ||
                         pantalla == "revision" ||
                         pantalla == "conteo" -> {
 
-                    LaunchedEffect(pantalla, productoCodigo) {
+                    LaunchedEffect(
+                        pantalla,
+                        productoCodigo
+                    ) {
 
                         productoCodigo = null
+
+                        limpiarEscaneoPendiente()
 
                         pantalla = "busqueda"
                     }
                 }
-                // 8. RUTA DESCONOCIDA
+
+                // ======================================
+                // RUTA DESCONOCIDA
+                // ======================================
 
                 else -> {
 
                     LaunchedEffect(pantalla) {
-
                         pantalla = "inicio"
                     }
                 }
