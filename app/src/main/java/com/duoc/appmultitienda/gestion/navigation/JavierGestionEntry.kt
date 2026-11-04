@@ -15,6 +15,12 @@ import com.duoc.appmultitienda.gestion.ui.DiferenciasEntry
 import com.duoc.appmultitienda.gestion.ui.HistorialAlertasEntry
 import com.duoc.appmultitienda.gestion.ui.ReposicionDashboardEntry
 import com.duoc.appmultitienda.gestion.ui.ReportesSucursalesEntry
+import com.duoc.appmultitienda.gestion.ui.ReportesSoloEntry
+import com.duoc.appmultitienda.gestion.repository.FuenteGestionCompartida
+import com.duoc.appmultitienda.gestion.viewmodel.ReportesSucursalesViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 
 /**
  * Punto de entrada aislado del módulo Javier. No modifica MainActivity permanentemente.
@@ -24,6 +30,7 @@ import com.duoc.appmultitienda.gestion.ui.ReportesSucursalesEntry
 fun JavierGestionEntry() {
     var sesion by remember { mutableStateOf<UsuarioSesion?>(null) }
     var loginKey by rememberSaveable { mutableIntStateOf(0) }
+    val fuente = remember { FuenteGestionCompartida() }
 
     MaterialTheme {
         if (sesion == null) {
@@ -34,6 +41,7 @@ fun JavierGestionEntry() {
         } else {
             PanelGestion(
                 sesion = sesion!!,
+                fuente = fuente,
                 onSalir = {
                     sesion = null
                     loginKey++
@@ -44,7 +52,7 @@ fun JavierGestionEntry() {
 }
 
 @Composable
-private fun PanelGestion(sesion: UsuarioSesion, onSalir: () -> Unit) {
+private fun PanelGestion(sesion: UsuarioSesion, fuente: FuenteGestionCompartida, onSalir: () -> Unit) {
     val disponibles = remember(sesion.rol) { GestionPermisos.rutasPara(sesion.rol) }
     var seleccion by remember(sesion.rol) { mutableStateOf(disponibles.firstOrNull()) }
 
@@ -77,10 +85,24 @@ private fun PanelGestion(sesion: UsuarioSesion, onSalir: () -> Unit) {
             HorizontalDivider()
             Box(Modifier.weight(1f)) {
                 when (seleccion) {
-                    GestionRuta.DIFERENCIAS -> DiferenciasEntry()
-                    GestionRuta.HISTORIAL_ALERTAS -> HistorialAlertasEntry()
+                    GestionRuta.DIFERENCIAS -> DiferenciasEntry(repository = fuente, actorId = sesion.identificador)
+                    GestionRuta.HISTORIAL_ALERTAS -> HistorialAlertasEntry(repository = fuente)
                     GestionRuta.DASHBOARD_REPOSICION -> ReposicionDashboardEntry()
-                    GestionRuta.REPORTES_SUCURSALES -> ReportesSucursalesEntry()
+                    GestionRuta.REPORTES, GestionRuta.REPORTES_SUCURSALES -> {
+                        val reportesVm: ReportesSucursalesViewModel = viewModel(
+                            factory = object : ViewModelProvider.Factory {
+                                @Suppress("UNCHECKED_CAST")
+                                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                                    ReportesSucursalesViewModel(fuente) as T
+                            }
+                        )
+                        LaunchedEffect(seleccion) { reportesVm.actualizarReporte() }
+                        if (seleccion == GestionRuta.REPORTES) {
+                            ReportesSoloEntry(vm = reportesVm)
+                        } else {
+                            ReportesSucursalesEntry(vm = reportesVm)
+                        }
+                    }
                     null -> Unit
                 }
             }

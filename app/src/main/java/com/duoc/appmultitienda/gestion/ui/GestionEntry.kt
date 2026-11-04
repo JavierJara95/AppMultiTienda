@@ -69,7 +69,7 @@ fun GestionEntry(
                         onClick = vm::iniciarSesion, enabled = !estado.cargando,
                         modifier = Modifier.fillMaxWidth()
                     ) { Text(if (estado.cargando) "Validando…" else "Iniciar sesión") }
-                    Text("Prueba: gerencia / demo123", style = MaterialTheme.typography.bodySmall)
+                    Text("Pruebas: gerencia / demo123 o admin / demo123", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

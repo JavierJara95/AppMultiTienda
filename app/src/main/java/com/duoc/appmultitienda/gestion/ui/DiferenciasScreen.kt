@@ -17,18 +17,21 @@ import com.duoc.appmultitienda.gestion.viewmodel.DiferenciasViewModel
 import com.duoc.appmultitienda.gestion.viewmodel.FiltroDiferencias
 
 @Composable
-fun DiferenciasEntry() {
+fun DiferenciasEntry(
+    repository: com.duoc.appmultitienda.gestion.repository.DiferenciasRepository = FakeDiferenciasRepository(),
+    actorId: String = "ENC-004"
+) {
     val vm: DiferenciasViewModel = viewModel(factory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            DiferenciasViewModel(FakeDiferenciasRepository()) as T
+            DiferenciasViewModel(repository) as T
     })
-    DiferenciasScreen(vm)
+    DiferenciasScreen(vm, actorId)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DiferenciasScreen(vm: DiferenciasViewModel) {
+fun DiferenciasScreen(vm: DiferenciasViewModel, actorId: String = "ENC-004") {
     val state by vm.uiState.collectAsState()
     Scaffold(topBar = { TopAppBar(title = { Text("MultiTienda · Diferencias") }) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
@@ -78,7 +81,7 @@ fun DiferenciasScreen(vm: DiferenciasViewModel) {
                             )
                             Text("${state.motivo.trim().length}/200 caracteres")
                             if (state.procesando) CircularProgressIndicator()
-                            Button(onClick = { vm.confirmarDecision() }, enabled = !state.procesando) {
+                            Button(onClick = { vm.confirmarDecision(actorId) }, enabled = !state.procesando) {
                                 Text(if (state.accion == true) "Confirmar ajuste" else "Confirmar rechazo")
                             }
                         }

@@ -17,11 +17,11 @@ import com.duoc.appmultitienda.gestion.viewmodel.*
 enum class PestanaGestion { HISTORIAL, ALERTAS }
 
 @Composable
-fun HistorialAlertasEntry() {
+fun HistorialAlertasEntry(repository: com.duoc.appmultitienda.gestion.repository.HistorialAlertasRepository = FakeHistorialAlertasRepository()) {
     val vm: HistorialAlertasViewModel = viewModel(factory = object : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            HistorialAlertasViewModel(FakeHistorialAlertasRepository()) as T
+            HistorialAlertasViewModel(repository) as T
     })
     HistorialAlertasScreen(vm)
 }
