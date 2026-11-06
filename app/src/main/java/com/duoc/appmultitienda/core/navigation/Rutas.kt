@@ -1,6 +1,6 @@
 package com.duoc.appmultitienda.core.navigation
 
-/** Las mismas restricciones se comprueban de nuevo en Spring Boot. */
+/** Restricciones de navegación por rol en la aplicación local. */
 object Rutas {
     val gestion =
         setOf(
